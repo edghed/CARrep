@@ -1,5 +1,6 @@
 package TP1;
 import java.io.*;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Scanner;
@@ -8,6 +9,7 @@ public class ClientHandler implements Runnable {
     private Socket socket;
     private Scanner scanner;
     private HashMap<String, String> users;
+    private ServerSocket dataServerSocket;
 
     public ClientHandler(Socket socket, HashMap<String, String> users) {
         this.socket = socket;
@@ -46,6 +48,16 @@ public class ClientHandler implements Runnable {
                     reponse = "221 Service closing control connection\r\n";
                     break;
                 } 
+                else if (command.startsWith("SIZE")) {
+                    
+                    reponse = sizeCommand(command);
+                }
+                
+                else if (command.startsWith("EPSV")) {
+                    
+                    reponse = EpsvCommand();
+                }
+
                 else {
                     reponse = "502 Command not implemented\r\n";
                 }
@@ -66,6 +78,33 @@ public class ClientHandler implements Runnable {
     private boolean checkCredentials(String username, String password) {
         return users.containsKey(username) && users.get(username).equals(password);
     }
+    private String sizeCommand(String command) {
+        String fileName = command.substring(5).trim();
+        File file = new File(fileName);
+        String reponse="";
+        if (file.exists()) {
+           reponse="213 " + file.length() + "\r\n";
+        } else {
+            reponse="550 File not found\r\n";
+        }
+        return reponse;
+    }
+       public String EpsvCommand() {
+        String reponse="";
+        try {
+            if (dataServerSocket != null && !dataServerSocket.isClosed()) {
+                dataServerSocket.close();
+            }
+            dataServerSocket = new ServerSocket(0);
+            int port = dataServerSocket.getLocalPort();
+
+           reponse= "229 Entering Extended Passive Mode (|||" + port + "|)\r\n";
+        } catch (IOException e) {
+            reponse= "500 Internal Server Error\r\n";
+        }
+        return reponse;
+    }
+
 
     private void closeConnection() {
         try {
