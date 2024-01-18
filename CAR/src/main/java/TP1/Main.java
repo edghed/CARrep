@@ -1,23 +1,25 @@
 package TP1;
 
-
-
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) {
-        int port = 2126;
-        try {
-            ServerSocket serverSocket = new ServerSocket(port);
+        //j'ai ajouté une map pour pouvoir ajouter plusieurs utilisateurs.
+        HashMap<String, String> users = new HashMap<>();
+        
+        users.put("Edem", "mdp");
+
+        int port = 2121;
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Serveur FTP en attente de connexions sur le port " + port);
 
             while (true) {
                 Socket socket = serverSocket.accept();
                 System.out.println("Nouvelle connexion entrante: " + socket.getInetAddress().getHostAddress());
-
-                ClientHandler clientHandler = new ClientHandler(socket);
+                ClientHandler clientHandler = new ClientHandler(socket, users);
                 new Thread(clientHandler).start();
             }
         } catch (IOException e) {

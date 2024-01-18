@@ -1,23 +1,20 @@
 package TP1;
-
-import java.io.IOException;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.Socket;
+import java.util.HashMap;
 import java.util.Scanner;
 
 public class ClientHandler implements Runnable {
-    private static final String DEFAULT_USERNAME = "Edem";
-    private static final String DEFAULT_PASSWORD = "mdp";
-
     private Socket socket;
     private Scanner scanner;
-    private OutputStream outputStream;
+    private HashMap<String, String> users;
 
-    public ClientHandler(Socket socket) {
+    public ClientHandler(Socket socket, HashMap<String, String> users) {
         this.socket = socket;
+        this.users = users;
         try {
-            this.scanner = new Scanner(socket.getInputStream());
-            this.outputStream = socket.getOutputStream();
+            InputStream in = socket.getInputStream();
+            scanner = new Scanner(in);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -26,32 +23,33 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
-            sendResponse("220 Service ready");
+            OutputStream out = socket.getOutputStream();
+            String reponse = "220 Service ready\r\n";
+            String userName="" ;
+            while (true) {
+                out.write(reponse.getBytes());
+                out.flush();
+                reponse = "";  
 
-            String userCommand = receiveCommand();
-            if (!userCommand.startsWith("USER ")) {
-                sendResponse("500 Syntax error, command unrecognized");
-                return;
+                String command = receiveCommand();
+                if(!(command.startsWith("USER") || command.startsWith("PASS")) ){
+                System.out.println("Commande: " + command);}
+                if (command.startsWith("USER")) {
+                    userName = command.substring(5).trim();
+                    reponse = "331 User name ok, need password\r\n" ;
+                } else if (command.startsWith("PASS")) {
+                    String pass = command.substring(5).trim();
+                    System.out.println("User: " + userName);
+                    System.out.println("Pass: " + pass);
+                    reponse = checkCredentials(userName, pass) ? "230 User logged in\r\n" : "530 User not logged in\r\n" ;
+                } else if (command.startsWith("QUIT")) {
+                    reponse = "221 Service closing control connection\r\n";
+                    break;
+                } 
+                else {
+                    reponse = "502 Command not implemented\r\n";
+                }
             }
-            String username = userCommand.substring(5).trim();
-            sendResponse("331 User name ok, need password");
-
-            String passCommand = receiveCommand();
-            if (!passCommand.startsWith("PASS ")) {
-                sendResponse("500 Syntax error, command unrecognized");
-                return;
-            }
-            String password = passCommand.substring(5).trim();
-            System.out.println("UserName: " + username);
-            System.out.println("Password: " + password);
-
-            if (checkCredentials(username, password)) {
-                sendResponse("230 User logged in");
-                handleQuitCommand();
-            } else {
-                sendResponse("530 Not logged in");
-            }
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
@@ -59,32 +57,14 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    private void sendResponse(String response) throws IOException {
-        response += "\r\n";
-        outputStream.write(response.getBytes());
-        outputStream.flush();
-    }
+    
 
     private String receiveCommand() {
         return scanner.hasNextLine() ? scanner.nextLine() : "";
     }
 
     private boolean checkCredentials(String username, String password) {
-        return DEFAULT_USERNAME.equals(username) && DEFAULT_PASSWORD.equals(password);
-    }
-
-    private void handleQuitCommand() throws IOException {
-        while (true) {
-            String command = receiveCommand();
-            if (command.startsWith("QUIT")) {
-                System.out.println("Commande : QUIT");
-                sendResponse("221 Service closing control connection");
-                break;
-            } else {
-                System.out.println("Commande : " + command);
-                sendResponse("500 Syntax error, command unrecognized");
-            }
-        }
+        return users.containsKey(username) && users.get(username).equals(password);
     }
 
     private void closeConnection() {
@@ -94,5 +74,9 @@ public class ClientHandler implements Runnable {
             e.printStackTrace();
         }
     }
+
+   
+    
 }
+
 
