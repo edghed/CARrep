@@ -28,8 +28,10 @@ public class ClientHandler implements Runnable {
             OutputStream out = socket.getOutputStream();
             String reponse = "220 Service ready\r\n";
             String userName="" ;
+             Boolean isRetr=false;
             while (true) {
-                out.write(reponse.getBytes());
+                if(!isRetr)
+                {out.write(reponse.getBytes());}
                 out.flush();
                 reponse = "";  
 
@@ -58,9 +60,17 @@ public class ClientHandler implements Runnable {
                     reponse = EpsvCommand();
                 }
 
+                else if (command.startsWith("RETR")) {
+                    isRetr=true;
+
+                  retrCommand(command,out);
+                }
+               
+
                 else {
                     reponse = "502 Command not implemented\r\n";
                 }
+                
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -78,17 +88,19 @@ public class ClientHandler implements Runnable {
     private boolean checkCredentials(String username, String password) {
         return users.containsKey(username) && users.get(username).equals(password);
     }
+    
     private String sizeCommand(String command) {
         String fileName = command.substring(5).trim();
         File file = new File(fileName);
         String reponse="";
         if (file.exists()) {
-           reponse="213 " + file.length() + "\r\n";
+            reponse="213 " + file.length() + "\r\n";  
         } else {
             reponse="550 File not found\r\n";
         }
         return reponse;
     }
+
        public String EpsvCommand() {
         String reponse="";
         try {
@@ -105,6 +117,46 @@ public class ClientHandler implements Runnable {
         return reponse;
     }
 
+ 
+    private void retrCommand(String command, OutputStream out) throws IOException {
+        String fileName = command.substring(5).trim();
+        File file = new File(fileName);
+        if (!file.exists()) {
+            out.write("550 File not found\r\n".getBytes());
+        }
+    
+        try (FileInputStream fin = new FileInputStream(file);
+             Socket dataSocket = dataServerSocket.accept(); 
+             BufferedOutputStream dOut = new BufferedOutputStream(dataSocket.getOutputStream())) {
+            
+  
+            out.write(("150 Opening data connection for " + fileName + "\r\n").getBytes());
+
+    
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = fin.read(buffer)) != -1) {
+                dOut.write(buffer, 0, bytesRead);
+            }
+            
+        
+
+            out.write("226 Transfer complete\r\n".getBytes());
+            
+
+            
+        } catch (IOException e) {
+            System.out.println("An error occurred: " + e.getMessage());
+            e.printStackTrace();
+            out.write("552 Requested file action aborted\r\n".getBytes());
+        }
+    }
+  
+    
+    
+        
+    
+    
 
     private void closeConnection() {
         try {
