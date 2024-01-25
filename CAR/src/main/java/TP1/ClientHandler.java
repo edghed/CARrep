@@ -2,6 +2,8 @@ package TP1;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.Date;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Scanner;
 
@@ -28,11 +30,12 @@ public class ClientHandler implements Runnable {
             OutputStream out = socket.getOutputStream();
             String reponse = "220 Service ready\r\n";
             String userName="" ;
-             Boolean isRetr=false;
+             Boolean isRetrorList=false;
             while (true) {
-                if(!isRetr)
-                {out.write(reponse.getBytes());}
-                out.flush();
+                if(!isRetrorList)
+                out.write(reponse.getBytes());
+                    out.flush();
+                
                 reponse = "";  
 
                 String command = receiveCommand();
@@ -61,9 +64,14 @@ public class ClientHandler implements Runnable {
                 }
 
                 else if (command.startsWith("RETR")) {
-                    isRetr=true;
+                    isRetrorList=true;
 
                   retrCommand(command,out);
+                }
+                else if (command.startsWith("LIST")) {
+                    isRetrorList=true;
+                    
+                     dirCommand(command,out);
                 }
                
 
@@ -151,11 +159,46 @@ public class ClientHandler implements Runnable {
             out.write("552 Requested file action aborted\r\n".getBytes());
         }
     }
-  
-    
-    
+    private void dirCommand(String command, OutputStream out) throws IOException {
         
+        String directory = "";
+
+        if(command.length()>4){
+           directory= command.substring(4).trim();
+
+        }
+        else {directory=System.getProperty("user.dir");}
+        File dir = new File(directory);
     
+       
+        out.write("150 Opening ASCII mode data connection for file list\r\n".getBytes());
+        out.flush();
+    
+        if (dir.exists() && dir.isDirectory()) {
+            try (Socket dataSocket = dataServerSocket.accept();
+                 OutputStream dOut = dataSocket.getOutputStream()) {
+                File[] files = dir.listFiles();
+                if (files != null) {
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    for (File file : files) {
+                        String fileInfo = String.format("%-20s %12d %s\r\n",
+                                file.getName(),
+                                file.length(),
+                                dateFormat.format(new Date(file.lastModified())));
+                        dOut.write(fileInfo.getBytes());
+                    }
+                    dOut.flush();
+                }
+            } 
+          
+    
+            
+            out.write("226 Transfer complete.\r\n".getBytes());
+        } else {
+           
+            out.write("550 Directory not found.\r\n".getBytes());
+        }
+    }
     
 
     private void closeConnection() {
