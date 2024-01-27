@@ -2,6 +2,8 @@ package TP1;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
@@ -30,9 +32,9 @@ public class ClientHandler implements Runnable {
             OutputStream out = socket.getOutputStream();
             String reponse = "220 Service ready\r\n";
             String userName="" ;
-             Boolean isRetrorList=false;
+             Boolean isVoid=false;
             while (true) {
-                if(!isRetrorList)
+                if(!isVoid)
                 out.write(reponse.getBytes());
                     out.flush();
                 
@@ -64,14 +66,19 @@ public class ClientHandler implements Runnable {
                 }
 
                 else if (command.startsWith("RETR")) {
-                    isRetrorList=true;
+                    isVoid=true;
 
                   retrCommand(command,out);
                 }
                 else if (command.startsWith("LIST")) {
-                    isRetrorList=true;
+                    isVoid=true;
                     
                      dirCommand(command,out);
+                }
+                else if (command.startsWith("CWD")) {
+                    isVoid=true;
+
+                  cwdCommand(command, out);
                 }
                
 
@@ -190,8 +197,6 @@ public class ClientHandler implements Runnable {
                     dOut.flush();
                 }
             } 
-          
-    
             
             out.write("226 Transfer complete.\r\n".getBytes());
         } else {
@@ -199,6 +204,31 @@ public class ClientHandler implements Runnable {
             out.write("550 Directory not found.\r\n".getBytes());
         }
     }
+    private void cwdCommand(String command, OutputStream out) throws IOException {
+        String directoryName =  command.substring(4).trim();
+    
+        Path currentPath = Paths.get(System.getProperty("user.dir"));
+        
+        Path newPath = currentPath.resolve(directoryName).normalize();
+    
+        File newDirectory = newPath.toFile();
+        
+    
+        if (newDirectory.exists() && newDirectory.isDirectory()) {
+            out.write("250 Directory changed successfully\r\n".getBytes());
+        } else {
+            out.write("550 Directory not found\r\n".getBytes());
+        }
+    }
+    
+    
+    
+
+    
+    
+    
+    
+    
     
 
     private void closeConnection() {
