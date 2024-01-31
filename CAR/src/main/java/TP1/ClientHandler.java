@@ -10,16 +10,15 @@ import java.util.HashMap;
 import java.util.Scanner;
 
 public class ClientHandler implements Runnable {
-    private String currentDirectory;
+    private String currentDirectory="";
     private Socket socket;
     private Scanner scanner;
     private HashMap<String, String> users;
     private ServerSocket dataServerSocket;
 
-    public ClientHandler(Socket socket, HashMap<String, String> users) {
+    public ClientHandler(Socket socket, HashMap<String, String> users){
         this.socket = socket;
-        this.users = users;
-        this.currentDirectory = System.getProperty("user.dir");}
+        this.users = users;}
 
     @Override
     public void run() {
@@ -32,8 +31,8 @@ public class ClientHandler implements Runnable {
              Boolean isVoid=false;
             while (true) {
                 if(!isVoid)
-                out.write(reponse.getBytes());
-                    out.flush();
+               { out.write(reponse.getBytes());
+                    out.flush();}
                 
                 reponse = "";  
 
@@ -43,6 +42,7 @@ public class ClientHandler implements Runnable {
                 if (command.startsWith("USER")) {
                     userName = command.substring(5).trim();
                     reponse = "331 User name ok, need password\r\n" ;
+                    System.out.println(currentDirectory);
                 } else if (command.startsWith("PASS")) {
                     String pass = command.substring(5).trim();
                     System.out.println("User: " + userName);
@@ -132,11 +132,11 @@ public class ClientHandler implements Runnable {
  
     private void retrCommand(String command, OutputStream out) throws IOException {
         String fileName = command.substring(5).trim();
-        File file = new File(currentDirectory+fileName);
+        File file = new File(fileName);
         if (!file.exists()) {
             out.write("550 File not found\r\n".getBytes());
         }
-    
+    else{
         try (FileInputStream fin = new FileInputStream(file);
              Socket dataSocket = dataServerSocket.accept(); 
              BufferedOutputStream dOut = new BufferedOutputStream(dataSocket.getOutputStream())) {
@@ -161,7 +161,7 @@ public class ClientHandler implements Runnable {
             System.out.println("An error occurred: " + e.getMessage());
             e.printStackTrace();
             out.write("552 Requested file action aborted\r\n".getBytes());
-        }
+        }}
     }
     private void dirCommand(String command, OutputStream out) throws IOException {
         String directoryPath;
@@ -207,6 +207,7 @@ public class ClientHandler implements Runnable {
     
     
     private void cwdCommand(String command, OutputStream out) throws IOException {
+        System.err.println(currentDirectory);
         String directoryName = command.substring(4).trim();
     
      
@@ -218,6 +219,7 @@ public class ClientHandler implements Runnable {
             currentDirectory = newDirectory.getAbsolutePath();
     
             out.write("250 Directory changed successfully\r\n".getBytes());
+            System.out.println(currentDirectory);
         } else {
             out.write("550 Directory not found\r\n".getBytes());
         }
