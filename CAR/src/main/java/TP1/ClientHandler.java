@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Scanner;
 
 public class ClientHandler implements Runnable {
+    private String currentDirectory;
     private Socket socket;
     private Scanner scanner;
     private HashMap<String, String> users;
@@ -18,17 +19,13 @@ public class ClientHandler implements Runnable {
     public ClientHandler(Socket socket, HashMap<String, String> users) {
         this.socket = socket;
         this.users = users;
-        try {
-            InputStream in = socket.getInputStream();
-            scanner = new Scanner(in);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+        this.currentDirectory = System.getProperty("user.dir");}
 
     @Override
     public void run() {
         try {
+            InputStream in = socket.getInputStream();
+            scanner = new Scanner(in);
             OutputStream out = socket.getOutputStream();
             String reponse = "220 Service ready\r\n";
             String userName="" ;
@@ -135,7 +132,7 @@ public class ClientHandler implements Runnable {
  
     private void retrCommand(String command, OutputStream out) throws IOException {
         String fileName = command.substring(5).trim();
-        File file = new File(fileName);
+        File file = new File(currentDirectory+fileName);
         if (!file.exists()) {
             out.write("550 File not found\r\n".getBytes());
         }
@@ -167,68 +164,64 @@ public class ClientHandler implements Runnable {
         }
     }
     private void dirCommand(String command, OutputStream out) throws IOException {
-        
-        String directory = "";
-
-        if(command.length()>4){
-           directory= command.substring(4).trim();
-
-        }
-        else {directory=System.getProperty("user.dir");}
-        File dir = new File(directory);
+        String directoryPath;
     
-       
-        out.write("150 Opening ASCII mode data connection for file list\r\n".getBytes());
-        out.flush();
+        try {
+            if (command.length() > 4) {
+                String requestedPath = command.substring(4).trim();
+                directoryPath = Paths.get(currentDirectory).resolve(requestedPath).normalize().toString();
+            } else {
+                directoryPath = currentDirectory;
+            }
+
     
-        if (dir.exists() && dir.isDirectory()) {
-            try (Socket dataSocket = dataServerSocket.accept();
-                 OutputStream dOut = dataSocket.getOutputStream()) {
-                File[] files = dir.listFiles();
-                if (files != null) {
-                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    for (File file : files) {
-                        String fileInfo = String.format("%-20s %12d %s\r\n",
-                                file.getName(),
-                                file.length(),
-                                dateFormat.format(new Date(file.lastModified())));
-                        dOut.write(fileInfo.getBytes());
+            File dir = new File(directoryPath);
+            out.write("150 Opening ASCII mode data connection for file list\r\n".getBytes());
+            out.flush();
+    
+            if (dir.exists() && dir.isDirectory()) {
+                try (Socket dataSocket = dataServerSocket.accept();
+                     OutputStream dOut = dataSocket.getOutputStream()) {
+                    File[] files = dir.listFiles();
+                    if (files != null) {
+                        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                        for (File file : files) {
+                            String fileInfo = String.format("%-20s %12d %s\r\n",
+                                    file.getName(),
+                                    file.length(),
+                                    dateFormat.format(new Date(file.lastModified())));
+                            dOut.write(fileInfo.getBytes());
+                        }
+                        dOut.flush();
                     }
-                    dOut.flush();
                 }
-            } 
-            
-            out.write("226 Transfer complete.\r\n".getBytes());
-        } else {
-           
-            out.write("550 Directory not found.\r\n".getBytes());
+                out.write("226 Transfer complete.\r\n".getBytes());
+            } else {
+                out.write("550 Directory not found.\r\n".getBytes());
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); 
+            out.write("550 Error processing request\r\n".getBytes());
         }
     }
-    private void cwdCommand(String command, OutputStream out) throws IOException {
-        String directoryName =  command.substring(4).trim();
     
-        Path currentPath = Paths.get(System.getProperty("user.dir"));
-        
-        Path newPath = currentPath.resolve(directoryName).normalize();
+    
+    private void cwdCommand(String command, OutputStream out) throws IOException {
+        String directoryName = command.substring(4).trim();
+    
+     
+        Path newPath = Paths.get(currentDirectory).resolve(directoryName).normalize();
     
         File newDirectory = newPath.toFile();
-        
     
         if (newDirectory.exists() && newDirectory.isDirectory()) {
+            currentDirectory = newDirectory.getAbsolutePath();
+    
             out.write("250 Directory changed successfully\r\n".getBytes());
         } else {
             out.write("550 Directory not found\r\n".getBytes());
         }
     }
-    
-    
-    
-
-    
-    
-    
-    
-    
     
 
     private void closeConnection() {
