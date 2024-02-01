@@ -7,11 +7,10 @@ import java.util.HashMap;
 
 public class Main {
     public static void main(String[] args) {
-        //j'ai ajouté une map pour pouvoir ajouter plusieurs utilisateurs.
+        // J'ai ajouté une map pour pouvoir ajouter plusieurs utilisateurs.
         HashMap<String, String> users = new HashMap<>();
-        
-        
         users.put("Edem", "mdp");
+        users.put("miage","car");
 
         int port = 2121;
         try (ServerSocket serverSocket = new ServerSocket(port)) {

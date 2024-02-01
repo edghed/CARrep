@@ -20,68 +20,41 @@ public class ClientHandler implements Runnable {
         this.socket = socket;
         this.users = users;
        }
-
+ 
     @Override
     public void run() {
         try {
             InputStream in = socket.getInputStream();
             scanner = new Scanner(in);
             OutputStream out = socket.getOutputStream();
-            String reponse = null; 
-            out.write("220 Service ready\r\n".getBytes());
-            String userName="" ;
+            sendResponse("220 Service ready\r\n", out);
+            String userName = "";
             
             while (true) {
-                if(reponse != null)
-                out.write(reponse.getBytes());
-                    out.flush();
-                
-                reponse = ""; 
-                boolean logged=false; 
-
                 String command = receiveCommand();
-                if(!(command.startsWith("USER") || command.startsWith("PASS")) ){
-                System.out.println("Commande: " + command);}
+                System.out.println("Commande: " + command);
+
                 if (command.startsWith("USER")) {
                     userName = command.substring(5).trim();
-                    reponse = "331 User name ok, need password\r\n" ;
+                    sendResponse("331 User name ok, need password\r\n", out);
                 } else if (command.startsWith("PASS")) {
                     String pass = command.substring(5).trim();
-                    System.out.println("User: " + userName);
-                    System.out.println("Pass: " + pass);
-                    reponse = checkCredentials(userName, pass) ? "230 User logged in\r\n" : "530 User not logged in\r\n" ;
+                    String response = checkCredentials(userName, pass) ? "230 User logged in\r\n" : "530 User not logged in\r\n";
+                    sendResponse(response, out);
                 } else if (command.startsWith("QUIT")) {
-                    reponse = "221 Service closing control connection\r\n";
+                    sendResponse("221 Service closing control connection\r\n", out);
                     break;
-                } 
-                else if (command.startsWith("SIZE")) {
-                    
-                    reponse = sizeCommand(command);
+                } else if (command.startsWith("EPSV")) {
+                    sendResponse(EpsvCommand(), out);
+                } else if (command.startsWith("RETR")) {
+                    retrCommand(command, out);
+                } else if (command.startsWith("LIST")) {
+                    dirCommand(command, out);
+                } else if (command.startsWith("CWD")) {
+                    cwdCommand(command, out);
+                } else {
+                    sendResponse("502 Command not implemented\r\n", out);
                 }
-                
-                else if (command.startsWith("EPSV")) {
-                    
-                    reponse = EpsvCommand();
-                }
-
-                else if (command.startsWith("RETR")) {
-
-                  retrCommand(command,out);
-                }
-                else if (command.startsWith("LIST")) {
-                    
-                     dirCommand(command,out);
-                }
-                else if (command.startsWith("CWD")) {
-
-                  cwdCommand(command, out);
-                }
-               
-
-                else {
-                    reponse = "502 Command not implemented\r\n";
-                }
-                
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -90,6 +63,10 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    private void sendResponse(String response, OutputStream out) throws IOException {
+        out.write(response.getBytes());
+        out.flush();
+    }
    
 
     private String receiveCommand() {
@@ -100,7 +77,7 @@ public class ClientHandler implements Runnable {
         return users.containsKey(username) && users.get(username).equals(password);
     }
     
-    private String sizeCommand(String command) {
+    /*private String sizeCommand(String command) {
         String fileName = command.substring(5).trim();
         File file = new File(fileName);
         String reponse="";
@@ -110,7 +87,7 @@ public class ClientHandler implements Runnable {
             reponse="550 File not found\r\n";
         }
         return reponse;
-    }
+    }*/
 
        public String EpsvCommand() {
         String reponse="";
