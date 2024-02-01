@@ -85,23 +85,35 @@ public class ClientHandler implements Runnable {
         }
         
     }
-    private void sendSpecificLine(String fileName, int lineNumber, OutputStream out) throws IOException {
-        Path filePath = Paths.get(currentDirectory, fileName);
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath.toFile()))) {
-            String line = null;
-            for (int i = 0; i < lineNumber; i++) {
-                line = br.readLine();
-                if (line == null) break;
+    private void sendSpecificLine(String fileName, int lineNumber, OutputStream commandOut) throws IOException {
+
+        try (Socket dataSocket = dataServerSocket.accept();
+             BufferedWriter dataOut = new BufferedWriter(new OutputStreamWriter(dataSocket.getOutputStream()))) {
+            Path filePath = Paths.get(currentDirectory, fileName);
+            try (BufferedReader br = new BufferedReader(new FileReader(filePath.toFile()))) {
+                String line = null;
+                for (int i = 1; i <= lineNumber; i++) {
+                    line = br.readLine();
+                    if (line == null) break;
+                }
+                if (line != null) {
+                    dataOut.write(line);
+                    dataOut.newLine();
+                    dataOut.flush();
+                    sendResponse("226 Transfer complete.\r\n", commandOut);
+                } else {
+                    sendResponse("550 Requested line number not found in file.\r\n", commandOut);
+                }
+            } catch (FileNotFoundException e) {
+                sendResponse("550 File not found.\r\n", commandOut);
             }
-            if (line != null) {
-                sendResponse(line + "\r\n", out);
-            } else {
-                sendResponse("550 Requested line number not found in file.\r\n", out);
+        } finally {
+            if (!dataServerSocket.isClosed()) {
+                dataServerSocket.close();
             }
-        } catch (FileNotFoundException e) {
-            sendResponse("550 File not found.\r\n", out);
         }
     }
+    
 
     private void sendResponse(String response, OutputStream out) throws IOException {
         out.write(response.getBytes());
