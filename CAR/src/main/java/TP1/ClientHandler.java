@@ -41,6 +41,7 @@ public class ClientHandler implements Runnable {
                     String pass = command.substring(5).trim();
                     String response = checkCredentials(userName, pass) ? "230 User logged in\r\n" : "530 User not logged in\r\n";
                     sendResponse(response, out);
+                
                 } else if (command.startsWith("QUIT")) {
                     sendResponse("221 Service closing control connection\r\n", out);
                     break;
@@ -52,7 +53,15 @@ public class ClientHandler implements Runnable {
                     dirCommand(command, out);
                 } else if (command.startsWith("CWD")) {
                     cwdCommand(command, out);
-                } else {
+                } 
+                else if (command.startsWith("PING")) {
+                
+                    sendResponse("200 PING command ok \r\n", out);
+                    sendResponse("PONG" ,out);
+                    break;
+                    
+                } 
+                else {
                     sendResponse("502 Command not implemented\r\n", out);
                 }
             }
@@ -211,4 +220,3 @@ public class ClientHandler implements Runnable {
    
     
 }
-
