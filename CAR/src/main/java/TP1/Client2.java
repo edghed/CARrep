@@ -38,7 +38,6 @@ public class Client2 {
           if (reponse2.equals("PONG")){
 
             out.write("200 PONG command ok \r\n" .getBytes());
-
           }
           else {
             System.out.println("502 Unknown command");

@@ -57,18 +57,49 @@ public class ClientHandler implements Runnable {
                 else if (command.startsWith("PING")) {
                 
                     sendResponse("200 PING command ok \r\n", out);
-                    sendResponse("PONG" ,out);
-                    break;
+                    sendResponse("PONG\r\n" ,out);
+                     
                     
                 } 
+
+               
+                else if (command.startsWith("LINE")) {
+                    String[] args = command.split(" ");
+                    if (args.length == 3) {
+                        String fileName = args[1];
+                        int lineNumber = Integer.parseInt(args[2]);
+                        sendSpecificLine(fileName, lineNumber, out);
+                    } else {
+                        sendResponse("500 Syntax error in parameters or arguments.\r\n", out);
+                    }
+                }
                 else {
                     sendResponse("502 Command not implemented\r\n", out);
                 }
+                
             }
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
             closeConnection();
+        }
+        
+    }
+    private void sendSpecificLine(String fileName, int lineNumber, OutputStream out) throws IOException {
+        Path filePath = Paths.get(currentDirectory, fileName);
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath.toFile()))) {
+            String line = null;
+            for (int i = 0; i < lineNumber; i++) {
+                line = br.readLine();
+                if (line == null) break;
+            }
+            if (line != null) {
+                sendResponse(line + "\r\n", out);
+            } else {
+                sendResponse("550 Requested line number not found in file.\r\n", out);
+            }
+        } catch (FileNotFoundException e) {
+            sendResponse("550 File not found.\r\n", out);
         }
     }
 
